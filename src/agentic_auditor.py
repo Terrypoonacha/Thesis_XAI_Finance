@@ -119,13 +119,16 @@ def query_regulations(query):
 
 # --- 3. Agent (Manual Loop) ---
 
-def run_agentic_auditor(transaction_id):
+def generate_compliance_memo(transaction_id):
     api_key = os.environ.get("GOOGLE_API_KEY")
     if not api_key:
-        print("Error: GOOGLE_API_KEY not set.")
-        return
+        return "Error: GOOGLE_API_KEY not set."
 
-    llm = ChatGoogleGenerativeAI(model="models/gemini-2.0-flash", google_api_key=api_key, temperature=0)
+    # Initialize LLM
+    try:
+        llm = ChatGoogleGenerativeAI(model="models/gemini-2.0-flash", google_api_key=api_key, temperature=0)
+    except Exception as e:
+        return f"Error initializing LLM: {e}"
 
     # Tool mapping
     tool_map = {
@@ -177,8 +180,7 @@ Thought:"""
             response_msg = llm.invoke(history)
             response = response_msg.content
         except Exception as e:
-            print(f"LLM Error: {e}")
-            break
+            return f"LLM Error: {e}"
             
         print(f"\nStep {i+1} LLM Output:\n{response}")
         
@@ -197,7 +199,7 @@ Thought:"""
             action = action_match.group(1).strip()
             action_input = action_input_match.group(1).strip()
             
-            # Sanitize input (remove quotes if model added them)
+            # Sanitize input
             action_input = action_input.strip('"').strip("'")
 
             print(f"Executing {action} with input: {action_input}")
@@ -210,18 +212,18 @@ Thought:"""
             else:
                 observation = f"Error: Tool {action} not found."
                 
-            print(f"Observation: {observation[:150]}...") # Print preview
+            print(f"Observation: {observation[:150]}...") 
             history += f"Observation: {observation}\nThought:"
         else:
-             # If no action found, maybe it needs a nudge
              if "Final Answer" not in response and "Action:" not in response:
                  history += "\nThought:"
 
     if final_answer:
-        print("\n--- Final Compliance Memo ---\n")
-        print(final_answer)
+        return final_answer
     else:
-        print("Agent failed to reach final answer.")
+        return "Agent failed to reach final answer."
 
 if __name__ == "__main__":
-    run_agentic_auditor(541)
+    memo = generate_compliance_memo(541)
+    print("\n--- Final Compliance Memo ---\n")
+    print(memo)
