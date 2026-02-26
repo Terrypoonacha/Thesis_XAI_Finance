@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import xgboost as xgb
 import shap
 from pathlib import Path
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import precision_recall_curve, auc
+from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.metrics import precision_recall_curve, auc, confusion_matrix, f1_score
+from sklearn.ensemble import RandomForestClassifier
 import joblib
 import sys
 import numpy as np
@@ -127,6 +128,82 @@ def train_and_evaluate(df):
     
     return model, X
 
+def plot_baseline_performance(model, df):
+    """Generates PR Curve, Confusion Matrix, and Performance Table inline using a Test Set."""
+    plt.rcParams.update({'font.size': 12})
+    X = df.drop('Class', axis=1)
+    y = df['Class']
+    
+    # 1. Stratified Train/Test Split (80/20) for visual validation
+    print("Splitting data for visual validation (80% Train, 20% Test)...")
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+    
+    # 2. Retrain/Fit models on X_train for the walkthrough
+    print("Training XGBoost on training split...")
+    model.fit(X_train, y_train) 
+    
+    print("Training Random Forest with balanced weights...")
+    rf = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42, n_jobs=-1)
+    rf.fit(X_train, y_train)
+    
+    models = {'XGBoost': model, 'Random Forest': rf}
+    metrics_data = []
+    
+    fig = plt.figure(figsize=(18, 10))
+    gs = fig.add_gridspec(2, 2)
+    
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, :])
+    ax3.axis('off')
+
+    colors = {'XGBoost': '#4A90E2', 'Random Forest': '#50E3C2'}
+    
+    for name, m in models.items():
+        # Evaluate on the hold-out TEST SET
+        y_probs = m.predict_proba(X_test)[:, 1]
+        y_preds = m.predict(X_test)
+        
+        # 3. Metrics Calculation (Academic Proof)
+        precision, recall, _ = precision_recall_curve(y_test, y_probs)
+        pr_auc = auc(recall, precision)
+        f1 = f1_score(y_test, y_preds)
+        
+        metrics_data.append([name, f"{pr_auc:.4f}", f"{f1:.4f}"])
+        
+        ax1.plot(recall, precision, label=f'{name} (Test AUPRC = {pr_auc:.4f})', color=colors[name], lw=3)
+    
+    ax1.set_title('PR Curve Comparison (Hold-out Test Set)', fontsize=16, fontweight='bold')
+    ax1.set_xlabel('Recall')
+    ax1.set_ylabel('Precision')
+    ax1.legend(loc='lower left')
+    ax1.grid(True, alpha=0.3)
+    
+    # 4. Confusion Matrix (XGBoost on Test Set)
+    y_preds_xgb = model.predict(X_test)
+    cm = confusion_matrix(y_test, y_preds_xgb)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax2, cbar=False)
+    ax2.set_title('XGBoost Confusion Matrix (Test Set)', fontsize=16, fontweight='bold')
+    ax2.set_xlabel('Predicted Label')
+    ax2.set_ylabel('True Label')
+    
+    # 5. Model Performance Table
+    table_data = [['Model (Evaluated on Test Set)', 'AUPRC', 'F1-Score']] + metrics_data
+    table = ax3.table(cellText=table_data, loc='center', cellLoc='center', colWidths=[0.3, 0.2, 0.2])
+    table.auto_set_font_size(False)
+    table.set_fontsize(14)
+    table.scale(1.2, 2.5)
+    
+    # Style the header
+    for (row, col), cell in table.get_celld().items():
+        if row == 0:
+            cell.set_text_props(weight='bold', color='white')
+            cell.set_facecolor('#444444')
+
+    plt.suptitle('Sprint 1: Robust Baseline Performance Audit', fontsize=22, fontweight='bold', y=0.95)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.92])
+    return fig
+
 def explain_model(model, X):
     """Generates SHAP summary plot."""
     print("Generating SHAP explanation...")
@@ -154,8 +231,14 @@ def main():
         df = load_data()
         perform_eda(df)
         model, X = train_and_evaluate(df)
+        
+        # New: Direct visualization of baseline performance for Academic Walkthrough
+        print("\n--- Generating Direct Visual Audit (Sprint 1) ---")
+        fig = plot_baseline_performance(model, df)
+        plt.show()
+        
         explain_model(model, X)
-        print("Sprint 1 Pipeline Completed Successfully.")
+        print("\nSprint 1 Pipeline Completed Successfully.")
     except Exception:
         print("Pipeline Failed With Traceback:")
         import traceback

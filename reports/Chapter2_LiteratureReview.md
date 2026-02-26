@@ -24,6 +24,11 @@ Article 13 is the cornerstone of explainability in the Act. It mandates that hig
 *   **Key Requirement**: The instructions for use must include concise, complete, correct, and clear information that is relevant, accessible, and comprehensible to users.
 *   **Impact on Black Boxes**: Purely opaque models (like deep neural networks or unconstrained XGBoost ensembles) may fail this requirement if they cannot provide "concise and clear" rationale for their decisions.
 
+**Article 14: Human Oversight**
+While Article 13 focuses on information, **Article 14** addresses the *agency* of the human operator. High-risk AI systems must be designed to enable effective human oversight.
+*   **The "Rubber Stamp" Risk**: A key concern of the regulator is automation bias, where humans blindly accept model outputs.
+*   **Agentic Mitigation**: The "Compliance Cockpit" proposed in this thesis directly addresses Article 14 by transforming the AI from a decision-maker to a decision-support system. By providing a reasoned "Compliance Memo" alongside the score, the human officer is empowered to exercise critical judgment, satisfying the requirement that oversight measures enable individuals to "interpret the system’s output" and "disregard, override or reverse the output" (Art. 14(4)).
+
 ### 2.3.2 BaFin MaRisk (Minimum Requirements for Risk Management)
 In Germany, the Federal Financial Supervisory Authority (BaFin) enforces the **MaRisk** circular (10/2021).
 
